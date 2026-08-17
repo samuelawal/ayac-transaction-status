@@ -8,7 +8,7 @@ export default function AppHeader({ env }) {
           <img className="crest" src="/logo.png" alt="Living Faith Church" width="31" height="34" />
           <div>
             <span className="org">Living Faith Church</span>
-            <span className="app-name">AYAC transaction status</span>
+            <span className="app-name">AYAC Registration transaction status</span>
           </div>
         </div>
 
