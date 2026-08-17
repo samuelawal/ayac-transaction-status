@@ -1,0 +1,876 @@
+/* ── tokens ───────────────────────────────────────────────────────────────
+   White ground, hairline structure, Raleway throughout. Red is the church's
+   colour and is spent sparingly: the mark, the primary button, focus, and the
+   live-environment warning. Transaction status keeps its own green/amber/red
+   scale so PAID and FAILED never rely on hue alone against a red interface.
+   ─────────────────────────────────────────────────────────────────────── */
+:root {
+  --red: #c8102e;
+  --red-dark: #a30c24;
+  --red-wash: #fdf1f3;
+
+  --paper: #ffffff;
+  --wash: #fafafa;
+  --wash-2: #f4f4f5;
+  --line: #e6e6e9;
+  --line-firm: #d3d4d8;
+
+  --ink: #1a1a1e;
+  --ink-2: #55565e;
+  --ink-3: #8b8d96;
+
+  --green: #12703f;
+  --amber: #99630a;
+  --crimson: #a01f24;
+
+  --r: 6px;
+  --r-lg: 9px;
+  --sans: 'Raleway Variable', 'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --red: #ef4a5e;
+    --red-dark: #ff6a7a;
+    --red-wash: #2a1418;
+
+    --paper: #131417;
+    --wash: #191a1e;
+    --wash-2: #1f2126;
+    --line: #292b31;
+    --line-firm: #3a3d45;
+
+    --ink: #eceef1;
+    --ink-2: #a1a4ad;
+    --ink-3: #74777f;
+
+    --green: #55d18d;
+    --amber: #e2b155;
+    --crimson: #ff8f8f;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 450;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.011em;
+}
+
+.mono {
+  font-family: var(--mono);
+  font-size: 0.92em;
+  letter-spacing: -0.01em;
+}
+.num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.dim {
+  color: var(--ink-2);
+}
+
+/* ── masthead ─────────────────────────────────────────────────────────── */
+.masthead {
+  border-bottom: 1px solid var(--line);
+}
+.masthead-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 18px 32px;
+}
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+/* The emblem is black-and-red line art on transparency, so it needs a white
+   ground to stay legible. Invisible on the white masthead; a clean white plate
+   in dark mode, where the black globe would otherwise disappear. */
+.crest {
+  flex: 0 0 auto;
+  height: 34px;
+  width: auto;
+  object-fit: contain;
+}
+@media (prefers-color-scheme: dark) {
+  .crest {
+    padding: 3px 5px;
+    background: #fff;
+    border-radius: 6px;
+    box-sizing: content-box;
+  }
+}
+.identity > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.org {
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.012em;
+}
+.app-name {
+  font-size: 12.5px;
+  font-weight: 450;
+  color: var(--ink-3);
+}
+
+.env {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.env .dot {
+  background: var(--ink-3);
+}
+.env.hot {
+  color: var(--red);
+  background: var(--red-wash);
+  border-color: color-mix(in srgb, var(--red) 26%, transparent);
+}
+.env.hot .dot {
+  background: var(--red);
+}
+
+/* ── layout ───────────────────────────────────────────────────────────── */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 24px 32px 80px;
+}
+.page.narrow {
+  max-width: 560px;
+  padding-top: 48px;
+}
+
+.panel {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+
+/* ── form ─────────────────────────────────────────────────────────────── */
+.filters {
+  padding: 20px 22px 18px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px 18px;
+}
+.field-wide {
+  grid-column: span 2;
+}
+.field-narrow {
+  max-width: 130px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 20px;
+  margin-bottom: 5px;
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--ink-2);
+}
+
+input[type='text'],
+input[type='datetime-local'],
+select {
+  width: 100%;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 450;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line-firm);
+  border-radius: var(--r);
+  outline: none;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+input.mono {
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+input::placeholder {
+  color: var(--ink-3);
+  font-family: var(--sans);
+  font-size: 13px;
+}
+input:hover,
+select:hover {
+  border-color: var(--ink-3);
+}
+input:focus,
+select:focus {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px var(--red-wash);
+}
+select {
+  appearance: none;
+  cursor: pointer;
+}
+
+/* useTxRef switch, sitting on the transaction-reference label */
+.toggle {
+  padding: 1px 7px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  background: transparent;
+  border: 1px solid var(--line-firm);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.toggle:hover {
+  color: var(--ink-2);
+  border-color: var(--ink-3);
+}
+.toggle.on {
+  color: var(--red);
+  background: var(--red-wash);
+  border-color: color-mix(in srgb, var(--red) 32%, transparent);
+}
+
+.filters-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.applied {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  padding: 8px 16px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  background: var(--paper);
+  border: 1px solid var(--line-firm);
+  border-radius: var(--r);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.12s, border-color 0.12s, background 0.12s, opacity 0.12s;
+}
+.btn:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--ink-3);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+.btn.solid {
+  color: #fff;
+  background: var(--red);
+  border-color: var(--red);
+}
+.btn.solid:hover:not(:disabled) {
+  color: #fff;
+  background: var(--red-dark);
+  border-color: var(--red-dark);
+}
+.btn.quiet {
+  border-color: transparent;
+}
+.btn.quiet:hover:not(:disabled) {
+  border-color: var(--line-firm);
+  background: var(--wash);
+}
+
+.hint {
+  margin-top: 5px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--amber);
+}
+
+/* Says where a filter is really being applied, when it is not upstream. */
+.caveat {
+  margin: 0;
+  padding: 10px 22px;
+  font-size: 12.5px;
+  color: var(--amber);
+  background: var(--wash);
+  border-bottom: 1px solid var(--line);
+}
+.caveat code {
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+.caveat strong {
+  font-weight: 650;
+}
+
+.notice {
+  margin: 14px 0 0;
+  padding: 9px 12px;
+  font-size: 13px;
+  border-radius: var(--r);
+}
+.notice-bad {
+  color: var(--crimson);
+  background: var(--red-wash);
+}
+
+.request {
+  margin-top: 14px;
+}
+.request summary {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--ink-3);
+  cursor: pointer;
+  list-style: none;
+}
+.request summary::marker,
+.request summary::-webkit-details-marker {
+  display: none;
+}
+.request summary::before {
+  content: '› ';
+  color: var(--red);
+}
+.request[open] summary::before {
+  content: '⌄ ';
+}
+.request summary:hover {
+  color: var(--ink-2);
+}
+.request code {
+  display: block;
+  margin-top: 8px;
+  padding: 9px 11px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  background: var(--wash);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  word-break: break-all;
+}
+
+/* ── setup ────────────────────────────────────────────────────────────── */
+.setup {
+  padding: 26px;
+}
+.setup h2 {
+  font-size: 17px;
+}
+.setup ol {
+  margin: 20px 0 22px;
+  padding-left: 18px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+.setup li + li {
+  margin-top: 8px;
+}
+.setup code {
+  padding: 1px 5px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--wash-2);
+  border-radius: 4px;
+}
+
+/* ── results ──────────────────────────────────────────────────────────── */
+.results {
+  overflow: hidden;
+}
+.results-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--line);
+}
+.results-head h2 {
+  font-size: 14.5px;
+}
+.results-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.results-meta strong {
+  font-weight: 650;
+  color: var(--ink);
+}
+.results-meta .sep {
+  width: 1px;
+  height: 11px;
+  background: var(--line-firm);
+}
+.tally {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.tally .dot {
+  margin-left: 6px;
+}
+.tally .dot:first-child {
+  margin-left: 0;
+}
+.tally em {
+  margin-left: 4px;
+  font-style: normal;
+  color: var(--ink-3);
+}
+
+.state {
+  margin: 0;
+  padding: 64px 24px;
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--ink-3);
+}
+.state.bad {
+  color: var(--crimson);
+}
+.state code {
+  display: block;
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 9px 16px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  text-align: left;
+  white-space: nowrap;
+  background: var(--wash);
+  border-bottom: 1px solid var(--line);
+}
+thead th.num {
+  text-align: right;
+}
+tbody tr {
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+tbody tr:last-child {
+  border-bottom: 0;
+}
+tbody tr:hover {
+  background: var(--wash);
+}
+tbody tr:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: -2px;
+}
+tbody tr.selected {
+  background: var(--red-wash);
+  box-shadow: inset 2px 0 0 var(--red);
+}
+tbody td {
+  padding: 11px 16px;
+  font-size: 13px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+td.num {
+  font-weight: 600;
+}
+td.truncate {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+.dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink-3);
+}
+.dot.ok {
+  background: var(--green);
+}
+.dot.warn {
+  background: var(--amber);
+}
+.dot.bad {
+  background: var(--crimson);
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  border-top: 1px solid var(--line);
+}
+
+/* ── drawer ───────────────────────────────────────────────────────────── */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  background: rgba(15, 15, 18, 0.4);
+}
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  width: min(460px, 100%);
+  background: var(--paper);
+  border-left: 1px solid var(--line);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.14);
+}
+.drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.drawer-head > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.drawer-amount {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.022em;
+  font-variant-numeric: tabular-nums;
+}
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 20px 28px;
+}
+
+.group {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.group:last-of-type {
+  border-bottom: 0;
+}
+.group h3 {
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--ink-3);
+}
+dl {
+  margin: 0;
+}
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 5px 0;
+}
+.row dt {
+  flex: 0 0 auto;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.row dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: right;
+  word-break: break-word;
+}
+.row dd.mono {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 450;
+}
+
+.copy {
+  margin-left: 8px;
+  padding: 0 5px;
+  font-family: var(--sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  background: transparent;
+  border: 1px solid var(--line-firm);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.copy:hover {
+  color: var(--red);
+  border-color: var(--red);
+}
+
+.raw {
+  margin-top: 18px;
+}
+.raw summary {
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.raw summary:hover {
+  color: var(--ink-2);
+}
+.raw pre {
+  margin: 10px 0 0;
+  padding: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  background: var(--wash);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow-x: auto;
+}
+
+/* ── toast ────────────────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 999px;
+}
+
+/* ── responsive ───────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .masthead-inner,
+  .page {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .field-wide {
+    grid-column: span 2;
+  }
+  td.truncate {
+    max-width: 180px;
+  }
+}
+
+/* Below this the table stops being a table and becomes one block per
+   transaction, each field labelled from its data-label. */
+@media (max-width: 720px) {
+  .masthead-inner {
+    padding: 14px 16px;
+  }
+  .page {
+    gap: 16px;
+    padding: 16px 16px 56px;
+  }
+  .filters {
+    padding: 16px;
+  }
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .field-wide {
+    grid-column: span 1;
+  }
+  .field-narrow {
+    max-width: none;
+  }
+  .filters-foot {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .applied {
+    order: 2;
+    text-align: center;
+  }
+  .actions .btn {
+    flex: 1;
+  }
+
+  .results-head {
+    padding: 14px 16px;
+  }
+  .results-meta {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  .table-wrap {
+    overflow-x: visible;
+  }
+  thead {
+    display: none;
+  }
+  tbody tr {
+    display: block;
+    padding: 14px 16px;
+  }
+  tbody tr.selected {
+    box-shadow: inset 3px 0 0 var(--red);
+  }
+  tbody td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 3px 0;
+    white-space: normal;
+    text-align: right;
+  }
+  tbody td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-size: 12.5px;
+    font-weight: 450;
+    color: var(--ink-3);
+  }
+  tbody td.truncate {
+    max-width: none;
+  }
+  /* Status and amount lead each block. */
+  tbody td[data-label='Status'],
+  tbody td[data-label='Amount'] {
+    padding-bottom: 6px;
+  }
+  tbody td[data-label='Amount'] {
+    font-size: 15px;
+  }
+
+  .pager {
+    padding: 12px 16px;
+  }
+  .drawer {
+    border-left: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .masthead-inner {
+    align-items: flex-start;
+  }
+  .app-name {
+    font-size: 12px;
+  }
+}

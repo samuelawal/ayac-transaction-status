@@ -1,0 +1,10 @@
+node_modules/
+dist/
+
+# Monnify credentials — never commit
+.env
+.env.local
+.env.*.local
+
+.DS_Store
+*.log
