@@ -23,6 +23,40 @@ npm run build && npm start   # one server on :4000 serving dist/ and /api
 
 `server.js` changes need a restart of the API process; Vite hot-reloads the front end.
 
+## Deploying to Vercel
+
+Vercel serves `dist/` as static files and runs each file in `api/` as a serverless
+function. It does **not** run `server.js` — a long-lived Node HTTP server is not a
+Vercel entry point, which is why `/api/session` 404s if the routes only exist there.
+So the Monnify logic lives in [api/_monnify.js](api/_monnify.js) and is shared by:
+
+| Route | File | Used by |
+| --- | --- | --- |
+| `GET /api/session` | [api/session.js](api/session.js) | Vercel |
+| `GET /api/transactions` | [api/transactions.js](api/transactions.js) | Vercel |
+| both, plus `dist/` | [server.js](server.js) | local dev only |
+
+One implementation, so local and deployed behaviour cannot drift apart. The `_`
+prefix on `_monnify.js` keeps Vercel from turning it into a route.
+
+**Set the environment variables in Vercel** — Project → Settings → Environment
+Variables. `.env` is gitignored and never deployed, so without these the app shows
+its setup screen:
+
+| Variable | Value |
+| --- | --- |
+| `MONNIFY_API_KEY` | the merchant's API key |
+| `MONNIFY_SECRET_KEY` | the merchant's secret key |
+| `MONNIFY_ENV` | `sandbox` or `live` |
+| `BASE_URL` | optional override |
+
+Skip `PORT` — Vercel assigns it. Environment variable changes only take effect on a
+**new deployment**, so redeploy after adding them.
+
+The upstream timeout is 9s, inside Vercel's default 10s function limit, so a slow
+call returns a readable `502` rather than Vercel's timeout page. Raise that timeout
+and `maxDuration` together if large pages ever need longer.
+
 ## Credentials
 
 The server holds them; the browser never sees them. There is no sign-in screen.
@@ -143,7 +177,10 @@ alone against a red interface. Light and dark themes both follow the system sett
 ## Files
 
 ```
-server.js                          .env loading, token cache, axios proxy, dist serving
+api/_monnify.js                    config, token cache, axios search — shared
+api/session.js                     GET /api/session      (Vercel function)
+api/transactions.js                GET /api/transactions (Vercel function)
+server.js                          local dev: same routes + .env loading + dist serving
 vite.config.js                     dev server + /api proxy to :4000
 index.html                         Vite entry
 public/logo.png                    ← overwrite to change the emblem and favicon

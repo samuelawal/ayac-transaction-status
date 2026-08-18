@@ -1,30 +1,25 @@
 /**
- * API proxy for the AYAC transaction-status app, plus static serving of the build.
+ * Local development server: the same two API routes Vercel exposes as serverless
+ * functions, plus static serving of the production build.
  *
- * The server owns the Monnify credentials (from .env) and signs itself in. The browser
- * never sees the API key, the secret key, or the access token — it just asks this
- * server for transactions.
- *
- * In development Vite serves the app on :5173 and forwards /api here.
- * In production `npm run build` writes dist/ and this server serves it too.
+ * The Monnify logic lives in api/_monnify.js and is shared with api/session.js and
+ * api/transactions.js, so local behaviour and the deployment cannot drift apart.
+ * On Vercel this file is not used at all — Vercel runs the functions in api/.
  */
 
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import axios from 'axios';
+import {
+  getAccessToken,
+  queryStringOf,
+  readConfig,
+  searchTransactions,
+} from './api/_monnify.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DIST_DIR = path.join(ROOT, 'dist');
-
-const V1_SEARCH_PATH = '/api/v1/transactions/search';
-const LOGIN_PATH = '/api/v1/auth/login';
-
-const BASE_URLS = {
-  sandbox: 'https://sandbox.monnify.com',
-  live: 'https://api.monnify.com',
-};
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -38,9 +33,7 @@ const MIME_TYPES = {
   '.woff2': 'font/woff2',
 };
 
-// ─────────────────────────── config ───────────────────────────
-
-/** Minimal .env reader. Real environment variables always win. */
+/** Minimal .env reader for local runs. Real environment variables always win. */
 async function loadEnvFile(file = path.join(ROOT, '.env')) {
   let text;
   try {
@@ -66,107 +59,7 @@ async function loadEnvFile(file = path.join(ROOT, '.env')) {
 
 await loadEnvFile();
 
-const config = {
-  env: String(process.env.MONNIFY_ENV || 'sandbox').toLowerCase(),
-  apiKey: (process.env.MONNIFY_API_KEY || '').trim(),
-  secretKey: (process.env.MONNIFY_SECRET_KEY || '').trim(),
-  port: Number(process.env.PORT || 4000),
-};
-
-if (!BASE_URLS[config.env]) {
-  console.warn(`MONNIFY_ENV="${config.env}" is not recognised — falling back to sandbox.`);
-  config.env = 'sandbox';
-}
-const BASE_URL = process.env.BASE_URL || BASE_URLS[config.env];
-
-// The label the UI displays must follow the URL actually in use. Without this, a
-// BASE_URL override would let the header read "sandbox" while querying production.
-const matchedEnv = Object.entries(BASE_URLS).find(([, url]) => url === BASE_URL);
-config.env = matchedEnv ? matchedEnv[0] : 'custom';
-
-// ─────────────────────────── upstream ───────────────────────────
-
-// One client for every Monnify call. `validateStatus` is disabled so a 4xx (bad
-// credentials, expired token) can be inspected here instead of thrown away.
-const monnify = axios.create({
-  baseURL: BASE_URL,
-  timeout: 30_000,
-  responseType: 'text', // keep the raw payload so it can be relayed untouched
-  validateStatus: null,
-  headers: { Accept: 'application/json' },
-});
-
-class HttpError extends Error {
-  constructor(status, message) {
-    super(message);
-    this.status = status;
-  }
-}
-
-let cachedToken = null; // { value, expiresAt }
-let pendingLogin = null; // dedupes concurrent sign-ins
-
-function parseJson(text) {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-}
-
-async function signIn() {
-  if (!config.apiKey || !config.secretKey) {
-    throw new HttpError(
-      503,
-      'Monnify credentials are not configured. Set MONNIFY_API_KEY and MONNIFY_SECRET_KEY in .env, then restart the server.',
-    );
-  }
-
-  const credential = Buffer.from(`${config.apiKey}:${config.secretKey}`).toString('base64');
-
-  let response;
-  try {
-    response = await monnify.post(LOGIN_PATH, null, {
-      headers: { Authorization: `Basic ${credential}`, 'Content-Type': 'application/json' },
-    });
-  } catch (err) {
-    const detail = err.code ? `${err.code}: ${err.message}` : err.message;
-    throw new HttpError(502, `Could not reach Monnify — ${detail}`);
-  }
-
-  const payload = parseJson(response.data);
-  const token = payload?.responseBody?.accessToken;
-
-  if (!payload?.requestSuccessful || !token) {
-    throw new HttpError(
-      response.status === 200 ? 502 : response.status,
-      payload?.responseMessage || `Monnify rejected the credentials (HTTP ${response.status}).`,
-    );
-  }
-
-  // expiresIn is in seconds; renew a minute early so a search never races the expiry.
-  const lifetime = Number(payload.responseBody.expiresIn) || 3600;
-  cachedToken = { value: token, expiresAt: Date.now() + Math.max(lifetime - 60, 30) * 1000 };
-  console.log(`Signed in to Monnify ${config.env}; token valid for ${lifetime}s.`);
-  return cachedToken.value;
-}
-
-/** Cached access token, signing in (once, even under concurrency) when needed. */
-async function getAccessToken({ force = false } = {}) {
-  if (!force && cachedToken && cachedToken.expiresAt > Date.now()) {
-    return cachedToken.value;
-  }
-  if (force) cachedToken = null;
-
-  if (!pendingLogin) {
-    pendingLogin = signIn().finally(() => {
-      pendingLogin = null;
-    });
-  }
-  return pendingLogin;
-}
-
-// ─────────────────────────── responses ───────────────────────────
+const PORT = Number(process.env.PORT || 4000);
 
 function sendJson(res, status, payload) {
   const body = JSON.stringify(payload);
@@ -178,77 +71,33 @@ function sendJson(res, status, payload) {
   res.end(body);
 }
 
-/** Forward a Monnify response to the browser, keeping its status and body. */
-function relay(res, upstream) {
-  const body =
-    typeof upstream.data === 'string' ? upstream.data : JSON.stringify(upstream.data ?? {});
-  res.writeHead(upstream.status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store',
-  });
-  res.end(body || '{}');
-}
-
-// ─────────────────────────── routes ───────────────────────────
-
-/**
- * GET /api/session
- * Confirms the server can authenticate, so the app can show a setup screen instead
- * of failing on the first search.
- */
 async function handleSession(res) {
+  const config = readConfig();
   try {
-    await getAccessToken();
-    return sendJson(res, 200, { ready: true, env: config.env, baseUrl: BASE_URL });
+    await getAccessToken(config);
+    return sendJson(res, 200, { ready: true, env: config.env, baseUrl: config.baseUrl });
   } catch (err) {
     return sendJson(res, err.status || 500, {
       ready: false,
       env: config.env,
-      baseUrl: BASE_URL,
+      baseUrl: config.baseUrl,
       error: err.message,
     });
   }
 }
 
-/**
- * GET /api/transactions?<v1 search params>
- * -> Monnify GET /api/v1/transactions/search with the server's Bearer token.
- */
-async function handleTransactions(res, url) {
-  const query = url.searchParams.toString();
-
-  const call = (token, searchPath = V1_SEARCH_PATH) =>
-    monnify.get(`${searchPath}${query ? `?${query}` : ''}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
+async function handleTransactions(req, res) {
   try {
-    let token = await getAccessToken();
-    let upstream = await call(token);
-
-    // The collection uses both `/search` and `/search/`. Try the canonical path
-    // first and fall back to the trailing-slash variant if it 404s.
-    if (upstream.status === 404) {
-      upstream = await call(token, `${V1_SEARCH_PATH}/`);
-    }
-
-    // A token can be revoked before it expires; sign in again and retry once.
-    if (upstream.status === 401) {
-      token = await getAccessToken({ force: true });
-      upstream = await call(token);
-    }
-
-    return relay(res, upstream);
+    const { status, body } = await searchTransactions(readConfig(), queryStringOf(req));
+    res.writeHead(status, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
+    });
+    res.end(body || '{}');
   } catch (err) {
-    if (err instanceof HttpError) {
-      return sendJson(res, err.status, { error: err.message });
-    }
-    const detail = err.code ? `${err.code}: ${err.message}` : err.message;
-    return sendJson(res, 502, { error: `Could not reach Monnify — ${detail}` });
+    return sendJson(res, err.status || 500, { error: err.message });
   }
 }
-
-// ─────────────────────────── static ───────────────────────────
 
 async function sendFile(res, target) {
   const file = await fs.readFile(target);
@@ -272,7 +121,6 @@ async function serveBuild(res, urlPath) {
   try {
     return await sendFile(res, target);
   } catch {
-    // Unknown path with no extension: hand back the SPA shell.
     if (!path.extname(target)) {
       try {
         return await sendFile(res, path.join(DIST_DIR, 'index.html'));
@@ -288,8 +136,6 @@ async function serveBuild(res, urlPath) {
   }
 }
 
-// ─────────────────────────── server ───────────────────────────
-
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
@@ -298,10 +144,10 @@ const server = http.createServer(async (req, res) => {
       return await handleSession(res);
     }
     if (url.pathname === '/api/transactions' && req.method === 'GET') {
-      return await handleTransactions(res, url);
+      return await handleTransactions(req, res);
     }
     if (url.pathname.startsWith('/api/')) {
-      return sendJson(res, 404, { error: `No proxy route for ${req.method} ${url.pathname}` });
+      return sendJson(res, 404, { error: `No route for ${req.method} ${url.pathname}` });
     }
     if (req.method !== 'GET') {
       return sendJson(res, 405, { error: 'Method not allowed' });
@@ -312,11 +158,11 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(config.port, () => {
-  const configured = config.apiKey && config.secretKey;
-  console.log(`API proxy listening on http://localhost:${config.port}`);
-  console.log(`Monnify ${config.env} → ${BASE_URL}`);
-  if (!configured) {
+server.listen(PORT, () => {
+  const config = readConfig();
+  console.log(`API listening on http://localhost:${PORT}`);
+  console.log(`Monnify ${config.env} → ${config.baseUrl}`);
+  if (!config.apiKey || !config.secretKey) {
     console.warn('⚠  MONNIFY_API_KEY / MONNIFY_SECRET_KEY are not set. Copy .env.example to .env.');
   }
 });
