@@ -46,10 +46,11 @@ export function readConfig() {
 }
 
 const client = axios.create({
-  // Under Vercel's default 10s function limit, so a slow upstream produces our own
-  // 502 with a readable message rather than Vercel's timeout page. Monnify
-  // normally answers in ~1.5s. Raise this and maxDuration together if needed.
-  timeout: 9_000,
+  // Sits under the 30s maxDuration set in vercel.json, so a slow upstream produces
+  // our own 502 with a readable message rather than Vercel's timeout page. A
+  // small page answers in ~1.5s; size=5000 is ~5s and 2.8MB, which is why the
+  // default 10s function limit is not enough on its own.
+  timeout: 25_000,
   responseType: 'text', // keep the raw payload so it can be relayed untouched
   validateStatus: null, // never throw on 4xx/5xx — inspect and relay instead
   headers: { Accept: 'application/json' },

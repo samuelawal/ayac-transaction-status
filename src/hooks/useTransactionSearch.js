@@ -1,12 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
 import { searchTransactions } from '../api/monnify';
+import { DEFAULT_PAGE_SIZE } from '../lib/constants';
 import { describeError } from '../lib/format';
 
 const INITIAL = {
   status: 'idle', // idle | loading | ready | error
   query: null, // last submitted params, without page/size
   page: 0,
-  size: 20,
+  size: DEFAULT_PAGE_SIZE,
   result: null, // Spring page object from responseBody
   error: null,
 };
@@ -39,12 +40,10 @@ export function useTransactionSearch() {
 
   return {
     ...state,
-    search: (query) => execute({ query, page: 0, size: state.size }),
+    // Size travels with the search, so the form applies filters and page size in
+    // one go; paging afterwards reuses whatever size that search ran with.
+    search: (query, size = state.size) => execute({ query, page: 0, size }),
     goToPage: (page) => execute({ query: state.query, page, size: state.size }),
-    changeSize: (size) =>
-      state.query
-        ? execute({ query: state.query, page: 0, size })
-        : setState((prev) => ({ ...prev, size })),
     reset,
   };
 }

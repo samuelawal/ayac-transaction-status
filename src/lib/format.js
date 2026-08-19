@@ -20,6 +20,21 @@ export function formatMoney(amount, currency = 'NGN') {
   }
 }
 
+/** Whole units, no kobo — for the overview's large figures, where decimals are noise. */
+export function formatMoneyWhole(amount, currency = 'NGN') {
+  const value = Number(amount);
+  if (!Number.isFinite(value)) return formatMoney(amount, currency);
+  try {
+    return new Intl.NumberFormat(MONEY_LOCALE, {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 0,
+    }).format(value);
+  } catch {
+    return `${currency} ${Math.round(value).toLocaleString()}`;
+  }
+}
+
 export function formatDateTime(value) {
   if (!value) return '—';
   const date = new Date(value);
@@ -44,6 +59,14 @@ export function formatShortDateTime(value) {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+/** Just the day, for the span an overview covers. */
+export function formatDay(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' });
 }
 
 export function formatBoolean(value) {

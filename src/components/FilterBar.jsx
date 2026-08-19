@@ -1,5 +1,10 @@
 import { useState } from 'react';
-import { PAGE_SIZES, PAYMENT_STATUSES } from '../lib/constants';
+import {
+  HEAVY_PAGE_SIZE,
+  MIN_PAGE_SIZE,
+  PAGE_SIZE_PRESETS,
+  PAYMENT_STATUSES,
+} from '../lib/constants';
 import { buildSearchParams, countActiveFilters, EMPTY_FILTERS } from '../lib/params';
 import { humanStatus } from '../lib/rows';
 
@@ -7,20 +12,33 @@ import { humanStatus } from '../lib/rows';
  * Every v1 query parameter, all optional, all combinable — the same model as
  * ticking rows in Postman's Params tab. Leaving everything blank lists the
  * merchant's transactions newest first.
+ *
+ * Page size is part of the form rather than a live control, so typing "5000"
+ * does not fire a request per keystroke. Everything applies on Search.
  */
-export default function FilterBar({ size, onSizeChange, onSearch, onReset, busy, preview }) {
+export default function FilterBar({ initialSize, onSearch, onReset, busy, preview }) {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [size, setSize] = useState(String(initialSize));
   const [error, setError] = useState(null);
 
   const set = (patch) => setFilters((prev) => ({ ...prev, ...patch }));
   const active = countActiveFilters(filters);
+  const parsedSize = Number(size);
+  const sizeIsHeavy = Number.isInteger(parsedSize) && parsedSize > HEAVY_PAGE_SIZE;
 
   function handleSubmit(event) {
     event.preventDefault();
+
+    // Monnify rejects a size below 1 outright; catch it here with a clearer message.
+    if (!/^\d+$/.test(size.trim()) || parsedSize < MIN_PAGE_SIZE) {
+      setError(`Per page must be a whole number of ${MIN_PAGE_SIZE} or more.`);
+      return;
+    }
+
     try {
       const params = buildSearchParams(filters);
       setError(null);
-      onSearch(params);
+      onSearch(params, parsedSize);
     } catch (err) {
       setError(err.message);
     }
@@ -28,6 +46,7 @@ export default function FilterBar({ size, onSizeChange, onSearch, onReset, busy,
 
   function handleReset() {
     setFilters(EMPTY_FILTERS);
+    setSize(String(initialSize));
     setError(null);
     onReset();
   }
@@ -130,23 +149,45 @@ export default function FilterBar({ size, onSizeChange, onSearch, onReset, busy,
           />
         </label>
 
-        <label className="field field-narrow">
+        <div className="field">
           <span className="label">Per page</span>
-          <select value={size} onChange={(event) => onSizeChange(Number(event.target.value))}>
-            {PAGE_SIZES.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={MIN_PAGE_SIZE}
+            step="1"
+            value={size}
+            onChange={(event) => setSize(event.target.value)}
+            aria-label="Results per page"
+          />
+          <span className="presets">
+            {PAGE_SIZE_PRESETS.map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                className={`preset${parsedSize === preset ? ' on' : ''}`}
+                onClick={() => setSize(String(preset))}
+              >
+                {preset.toLocaleString()}
+              </button>
             ))}
-          </select>
-        </label>
+          </span>
+          {sizeIsHeavy && (
+            <span className="hint">
+              {parsedSize.toLocaleString()} rows in one page — slower to fetch and render, but it
+              makes the status filter cover the whole set.
+            </span>
+          )}
+        </div>
       </div>
 
       {error && <p className="notice notice-bad">{error}</p>}
 
       <div className="filters-foot">
         <span className="applied">
-          {active === 0 ? 'No filters — lists everything, newest first' : `${active} filter${active > 1 ? 's' : ''} applied`}
+          {active === 0
+            ? 'No filters — lists everything, newest first'
+            : `${active} filter${active > 1 ? 's' : ''} applied`}
         </span>
         <div className="actions">
           {active > 0 && (

@@ -53,9 +53,10 @@ its setup screen:
 Skip `PORT` — Vercel assigns it. Environment variable changes only take effect on a
 **new deployment**, so redeploy after adding them.
 
-The upstream timeout is 9s, inside Vercel's default 10s function limit, so a slow
-call returns a readable `502` rather than Vercel's timeout page. Raise that timeout
-and `maxDuration` together if large pages ever need longer.
+[vercel.json](vercel.json) raises `maxDuration` to 30s for the two functions,
+because the default 10s is not enough for a large page — `size=5000` takes about
+4.4s upstream and returns 2.8MB. The axios timeout is 25s, under that ceiling, so a
+slow call returns a readable `502` rather than Vercel's timeout page.
 
 ## Credentials
 
@@ -107,7 +108,7 @@ merchant's transactions newest first.
 | Customer email | `customerEmail` | yes |
 | Customer name | `customerName` | yes |
 | From / To | `from`, `to` as epoch ms | yes |
-| Per page | `size`, with `page` | yes |
+| Per page | `size`, with `page` | yes — any whole number |
 | Status | `paymentStatus` | **no — see below** |
 
 Transaction references are URL-encoded so `|` becomes `%7C`, which is what the
@@ -116,6 +117,26 @@ datetimes and sent as epoch milliseconds, matching the collection's date script.
 
 The exact query string being sent is under **Request** in the filter panel, ready to
 paste back into Postman.
+
+**Page size is a free-text box**, with 20 / 50 / 100 / 500 / 5000 as shortcuts. There
+is no upper bound upstream — `size=10000` simply returns everything available — and
+anything below 1 is rejected (`Page size must not be less than 1`), so the form
+requires a whole number of 1 or more. Measured against live data:
+
+| `size` | Time | Payload | Rows returned |
+| --- | --- | --- | --- |
+| 100 | 1.4s | 71 KB | 100 |
+| 500 | 1.7s | 352 KB | 500 |
+| 1000 | 1.6s | 704 KB | 1000 |
+| 5000 | 4.4s | 2.8 MB | 3982 — the whole set, `totalPages: 1` |
+
+Page size applies on **Search**, not while typing, so entering `5000` does not fire
+a request per keystroke. Above 500 the form says the page will be slower to fetch
+and render.
+
+That large page is what makes the status filter genuinely useful: at `size=5000`
+everything is on one page, so filtering to `Paid` covers the whole set rather than a
+slice.
 
 ### paymentStatus is accepted and then ignored
 
@@ -141,8 +162,18 @@ read as a whole-search one.
 ## Results
 
 The Spring `Page` envelope (`content`, `totalElements`, `totalPages`, `first`,
-`last`) renders as a table — status, amount, customer, both references, method,
-created — with a header line carrying the whole-search total, the visible slice, and
+`last`) renders as a table, in this column order:
+
+> **Status · Customer · Created · Amount · Method · Payment ref · Transaction ref**
+
+The question being asked comes first, then who and when, then the money, with the
+long monospace references last where they can be truncated without hiding anything
+you scan by. Amount sits mid-table deliberately: every AYAC registration is the same
+₦1,000, so it carries almost no scanning value here and does not deserve column two.
+Status is a tinted pill — green settled, amber pending, crimson failed — and the
+label always spells the status out, so meaning never rests on colour alone.
+
+The header line carries the whole-search total, the visible slice, and
 settled/pending counts for the page. Clicking a row opens a detail drawer with
 references (copy buttons), amounts, fees, timing, customer, merchant, allowed
 payment methods, metadata and the raw JSON. A lookup landing on exactly one row
@@ -154,6 +185,10 @@ currency code, whatever the viewer's locale.
 Below 720px the table stops being a table: each transaction becomes one labelled
 block, so nothing needs sideways scrolling. The filter grid steps 4 → 3 → 2 → 1
 column.
+
+Rows carry `content-visibility: auto`, so the browser skips layout and paint for
+off-screen rows. That keeps a 4000-row page scrollable without pulling in a
+virtualisation library; browsers without support just render normally.
 
 ## Branding
 
@@ -181,6 +216,7 @@ api/_monnify.js                    config, token cache, axios search — shared
 api/session.js                     GET /api/session      (Vercel function)
 api/transactions.js                GET /api/transactions (Vercel function)
 server.js                          local dev: same routes + .env loading + dist serving
+vercel.json                        30s maxDuration for the API functions
 vite.config.js                     dev server + /api proxy to :4000
 index.html                         Vite entry
 public/logo.png                    ← overwrite to change the emblem and favicon
@@ -192,7 +228,7 @@ src/lib/constants.js               statuses, tones, page sizes
 src/lib/format.js                  money, dates, error messages
 src/lib/params.js                  form → v1 query params, request preview
 src/lib/rows.js                    local paymentStatus narrowing
-src/components/                    AppHeader, FilterBar, ResultsCard, StatusDot,
+src/components/                    AppHeader, FilterBar, ResultsCard, StatusPill,
                                    TransactionDrawer, SetupNotice
 src/styles.css                     tokens, layout, responsive rules
 ```

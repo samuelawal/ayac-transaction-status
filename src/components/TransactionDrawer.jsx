@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import StatusDot from './StatusDot';
+import StatusPill from './StatusPill';
 import { formatBoolean, formatDateTime, formatMoney } from '../lib/format';
 
 function Row({ label, value, mono = false, copy = false, onCopy }) {
@@ -38,7 +38,7 @@ export default function TransactionDrawer({ transaction, onClose, onCopy }) {
         <header className="drawer-head">
           <div>
             <span className="drawer-amount">{formatMoney(transaction.amount, currency)}</span>
-            <StatusDot status={transaction.paymentStatus} />
+            <StatusPill status={transaction.paymentStatus} />
           </div>
           <button type="button" className="btn quiet" onClick={onClose}>
             Close

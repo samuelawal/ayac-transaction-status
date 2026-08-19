@@ -1,4 +1,4 @@
-import StatusDot from './StatusDot';
+import StatusPill from './StatusPill';
 import { UPSTREAM_SEARCH_PATH } from '../lib/constants';
 import { formatMoney, formatShortDateTime } from '../lib/format';
 import { humanStatus } from '../lib/rows';
@@ -6,6 +6,12 @@ import { humanStatus } from '../lib/rows';
 const SETTLED = new Set(['PAID', 'OVERPAID']);
 const AWAITING = new Set(['PENDING', 'PARTIALLY_PAID']);
 
+/**
+ * Column order runs from the identifying facts to the verdict: who paid, how much,
+ * when, and how, then the long mono references, and finally the status — which is
+ * the one column with a shape of its own, so it reads cleanly down the right edge
+ * without needing to be scanned against anything.
+ */
 function Rows({ rows, selectedIndex, onSelect }) {
   return rows.map((row, index) => (
     <tr
@@ -20,14 +26,17 @@ function Rows({ rows, selectedIndex, onSelect }) {
         }
       }}
     >
-      <td data-label="Status">
-        <StatusDot status={row.paymentStatus} />
+      <td data-label="Customer" className="truncate" title={row.customerDTO?.email ?? ''}>
+        {row.customerDTO?.email || row.customerDTO?.name || '—'}
       </td>
       <td data-label="Amount" className="num">
         {formatMoney(row.amount, row.currencyCode)}
       </td>
-      <td data-label="Customer" className="truncate" title={row.customerDTO?.email ?? ''}>
-        {row.customerDTO?.email || row.customerDTO?.name || '—'}
+      <td data-label="Created" className="dim num">
+        {formatShortDateTime(row.createdOn)}
+      </td>
+      <td data-label="Method" className="dim">
+        {row.paymentMethod || '—'}
       </td>
       <td data-label="Payment ref" className="mono">
         {row.paymentReference || '—'}
@@ -35,11 +44,8 @@ function Rows({ rows, selectedIndex, onSelect }) {
       <td data-label="Transaction ref" className="mono dim">
         {row.transactionReference || '—'}
       </td>
-      <td data-label="Method" className="dim">
-        {row.paymentMethod || '—'}
-      </td>
-      <td data-label="Created" className="dim num">
-        {formatShortDateTime(row.createdOn)}
+      <td data-label="Status">
+        <StatusPill status={row.paymentStatus} />
       </td>
     </tr>
   ));
@@ -81,8 +87,8 @@ export default function ResultsCard({
             <span className="sep" aria-hidden="true" />
             {localStatus ? (
               <span>
-                <strong>{rows.length}</strong> {humanStatus(localStatus).toLowerCase()} of{' '}
-                {loadedCount} loaded
+                <strong>{rows.length.toLocaleString()}</strong>{' '}
+                {humanStatus(localStatus).toLowerCase()} of {loadedCount.toLocaleString()} loaded
               </span>
             ) : (
               <>
@@ -94,9 +100,9 @@ export default function ResultsCard({
                     <span className="sep" aria-hidden="true" />
                     <span className="tally">
                       <i className="dot ok" aria-hidden="true" />
-                      {settled} settled
+                      {settled.toLocaleString()} settled
                       <i className="dot warn" aria-hidden="true" />
-                      {awaiting} pending
+                      {awaiting.toLocaleString()} pending
                       <em>on this page</em>
                     </span>
                   </>
@@ -110,7 +116,8 @@ export default function ResultsCard({
       {localStatus && status === 'ready' && result && (
         <p className="caveat">
           Monnify’s v1 search ignores <code>paymentStatus</code>, so this filter is applied to the{' '}
-          {loadedCount} rows on this page only. Raise <strong>per page</strong> to widen the net.
+          {loadedCount.toLocaleString()} rows on this page only. Raise <strong>per page</strong> to
+          widen the net.
         </p>
       )}
 
@@ -130,7 +137,9 @@ export default function ResultsCard({
       {status === 'ready' && result && rows.length === 0 && (
         <p className="state">
           {localStatus && loadedCount > 0
-            ? `None of the ${loadedCount} rows on this page are ${humanStatus(localStatus).toLowerCase()}.`
+            ? `None of the ${loadedCount.toLocaleString()} rows on this page are ${humanStatus(
+                localStatus,
+              ).toLowerCase()}.`
             : 'Nothing matched those filters.'}
         </p>
       )}
@@ -140,13 +149,13 @@ export default function ResultsCard({
           <table>
             <thead>
               <tr>
-                <th>Status</th>
-                <th className="num">Amount</th>
                 <th>Customer</th>
+                <th className="num">Amount</th>
+                <th className="num">Created</th>
+                <th>Method</th>
                 <th>Payment ref</th>
                 <th>Transaction ref</th>
-                <th>Method</th>
-                <th className="num">Created</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>

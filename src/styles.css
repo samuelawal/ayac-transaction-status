@@ -204,9 +204,6 @@ h3 {
 .field-wide {
   grid-column: span 2;
 }
-.field-narrow {
-  max-width: 130px;
-}
 
 .field {
   display: flex;
@@ -352,6 +349,59 @@ select {
   font-size: 11.5px;
   line-height: 1.4;
   color: var(--amber);
+}
+
+/* Page-size shortcuts. The box beside them stays free-text, so any whole
+   number can be typed — 5000 included. */
+input[type='number'] {
+  width: 100%;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 450;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line-firm);
+  border-radius: var(--r);
+  outline: none;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+input[type='number']:hover {
+  border-color: var(--ink-3);
+}
+input[type='number']:focus {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px var(--red-wash);
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.preset {
+  padding: 2px 8px;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+  background: transparent;
+  border: 1px solid var(--line-firm);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.preset:hover {
+  color: var(--ink);
+  border-color: var(--ink-3);
+}
+.preset.on {
+  color: var(--red);
+  background: var(--red-wash);
+  border-color: color-mix(in srgb, var(--red) 32%, transparent);
 }
 
 /* Says where a filter is really being applied, when it is not upstream. */
@@ -540,6 +590,11 @@ thead th.num {
 tbody tr {
   border-bottom: 1px solid var(--line);
   cursor: pointer;
+  /* A 5000-row page is thousands of rows in the DOM. This lets the browser skip
+     layout and paint for rows that are off screen, which keeps scrolling smooth;
+     the size hint stops the scrollbar jumping. Ignored where unsupported. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 43px;
 }
 tbody tr:last-child {
   border-bottom: 0;
@@ -570,14 +625,37 @@ td.truncate {
   text-overflow: ellipsis;
 }
 
-.status {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 13px;
-  font-weight: 550;
+/* Status as a filled pill. Tone carries the outcome; the label carries it too,
+   so the meaning never rests on colour alone. */
+.pill {
+  display: inline-block;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
   white-space: nowrap;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  color: var(--ink-2);
+  background: var(--wash-2);
+  border-color: var(--line);
 }
+.pill.ok {
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 11%, transparent);
+  border-color: color-mix(in srgb, var(--green) 26%, transparent);
+}
+.pill.warn {
+  color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 13%, transparent);
+  border-color: color-mix(in srgb, var(--amber) 30%, transparent);
+}
+.pill.bad {
+  color: var(--crimson);
+  background: color-mix(in srgb, var(--crimson) 11%, transparent);
+  border-color: color-mix(in srgb, var(--crimson) 28%, transparent);
+}
+
 .dot {
   flex: 0 0 auto;
   width: 6px;
@@ -604,6 +682,426 @@ td.truncate {
   font-size: 12.5px;
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
+  border-top: 1px solid var(--line);
+}
+
+/* ── view switch ──────────────────────────────────────────────────────────
+   Transactions and Overview read the same filter bar; this only swaps which
+   answer is on screen, so it sits between the filters and the panel. */
+.views {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 2px;
+  padding: 3px;
+  background: var(--wash-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.view {
+  padding: 5px 16px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-3);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s;
+}
+.view:hover {
+  color: var(--ink);
+}
+.view.on {
+  color: var(--red);
+  background: var(--paper);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.view:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
+/* ── overview ─────────────────────────────────────────────────────────── */
+.overview {
+  overflow: hidden;
+}
+.overview .results-meta .btn {
+  margin-left: 2px;
+  padding: 3px 10px;
+  font-size: 12.5px;
+}
+.overview-body {
+  padding: 22px;
+  transition: opacity 0.15s;
+}
+/* A refresh holds the last render rather than collapsing to a spinner, so
+   nothing jumps under the cursor. */
+.overview-body.stale {
+  opacity: 0.45;
+}
+.state .btn {
+  display: block;
+  margin: 14px auto 0;
+}
+
+/* The one number the view leads with. Proportional figures — tabular digits
+   make a large standalone number look loose. */
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hero-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.hero-figure {
+  font-size: clamp(34px, 5.4vw, 50px);
+  font-weight: 650;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  font-variant-numeric: proportional-nums;
+}
+.hero-note {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
+  gap: 10px;
+  margin: 22px 0 26px;
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  background: var(--wash);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.tile-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--ink-2);
+}
+.tile-value {
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  font-variant-numeric: proportional-nums;
+}
+.tile-note {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+
+.breakdown {
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.breakdown + .breakdown {
+  margin-top: 24px;
+}
+.breakdown h3 {
+  margin-bottom: 12px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--ink-3);
+}
+
+/* One thin bar for the whole set. The 2px gap is the surface doing the
+   separating — no borders drawn around the segments. */
+.composition {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+}
+.composition .seg {
+  min-width: 3px;
+  border-radius: 2px;
+}
+.composition .seg:first-child {
+  border-radius: 5px 2px 2px 5px;
+}
+.composition .seg:last-child {
+  border-radius: 2px 5px 5px 2px;
+}
+.composition .seg:only-child {
+  border-radius: 5px;
+}
+.composition .seg.ok {
+  background: var(--green);
+}
+.composition .seg.warn {
+  background: var(--amber);
+}
+.composition .seg.bad {
+  background: var(--crimson);
+}
+.composition .seg.idle {
+  background: var(--line-firm);
+}
+
+/* Always present: the segments are never the only way to tell the groups apart. */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend strong {
+  font-weight: 650;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.legend-share {
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.legend-note {
+  color: var(--ink-3);
+  font-size: 11.5px;
+}
+/* Line keys, not filled boxes — the legend mirrors the mark it stands for. */
+.key {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 2px;
+  border-radius: 1px;
+}
+.key.total {
+  background: var(--ink-3);
+}
+.key.settled {
+  background: var(--green);
+}
+
+/* ── volume chart ─────────────────────────────────────────────────────────
+   Emphasis, not four colours: settled carries the accent, the total sits
+   behind it in the de-emphasis grey. */
+.chart {
+  position: relative;
+}
+.chart svg {
+  display: block;
+  overflow: visible;
+  touch-action: pan-y;
+}
+.chart svg:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 3px;
+  border-radius: var(--r);
+}
+.chart .grid {
+  stroke: var(--line);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+.chart .crosshair {
+  stroke: var(--line-firm);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+.chart .tick {
+  font-family: var(--sans);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  fill: var(--ink-3);
+}
+.chart .line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.chart .line.total {
+  stroke: var(--ink-3);
+}
+.chart .line.settled {
+  stroke: var(--green);
+}
+/* A 2px ring in the surface colour keeps a marker legible where the lines meet. */
+.chart .point {
+  stroke: var(--paper);
+  stroke-width: 2;
+}
+.chart .point.total {
+  fill: var(--ink-3);
+}
+.chart .point.settled {
+  fill: var(--green);
+}
+.chart .end-label {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  fill: var(--ink-2);
+}
+
+.chart-tip {
+  position: absolute;
+  top: 2px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 11px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--ink-2);
+  background: var(--paper);
+  border: 1px solid var(--line-firm);
+  border-radius: var(--r);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+}
+.tip-when {
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--ink);
+}
+/* Values lead, labels follow — the reader has the series and wants the number. */
+.tip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tip-row strong {
+  font-weight: 650;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.tip-note {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+/* Every plotted value, reachable without hovering anything. */
+.table-twin {
+  margin-top: 14px;
+}
+.table-twin summary {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 550;
+  color: var(--ink-3);
+  cursor: pointer;
+  list-style: none;
+}
+.table-twin summary::marker,
+.table-twin summary::-webkit-details-marker {
+  display: none;
+}
+.table-twin summary::before {
+  content: '› ';
+  color: var(--red);
+}
+.table-twin[open] summary::before {
+  content: '⌄ ';
+}
+.table-twin summary:hover {
+  color: var(--ink-2);
+}
+.table-twin .mini-wrap {
+  margin-top: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+/* The table twin of the bar — every value readable without hovering anything. */
+.mini-wrap {
+  margin-top: 16px;
+  overflow-x: auto;
+}
+table.mini thead th {
+  position: static;
+  padding: 6px 14px 6px 0;
+  background: transparent;
+  border-bottom: 1px solid var(--line);
+}
+table.mini tbody tr {
+  cursor: default;
+  content-visibility: visible;
+}
+table.mini tbody tr:hover {
+  background: transparent;
+}
+table.mini tbody tr:last-child {
+  border-bottom: 0;
+}
+table.mini tbody td {
+  padding: 7px 14px 7px 0;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+table.mini th:last-child,
+table.mini td:last-child {
+  padding-right: 0;
+}
+
+/* Magnitude only, so one neutral hue for every row — the pill beside it is
+   what says which status this is. */
+td.share {
+  width: 38%;
+  min-width: 150px;
+  white-space: nowrap;
+}
+.share .track {
+  display: inline-block;
+  width: calc(100% - 46px);
+  min-width: 56px;
+  height: 6px;
+  vertical-align: middle;
+  background: var(--wash-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.share .fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
+}
+.share .pct {
+  display: inline-block;
+  width: 40px;
+  margin-left: 6px;
+  text-align: right;
+  vertical-align: middle;
+  color: var(--ink-3);
+}
+
+.footnote {
+  margin: 26px 0 0;
+  padding-top: 16px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-3);
   border-top: 1px solid var(--line);
 }
 
@@ -793,9 +1291,6 @@ dl {
   .field-wide {
     grid-column: span 1;
   }
-  .field-narrow {
-    max-width: none;
-  }
   .filters-foot {
     flex-direction: column;
     align-items: stretch;
@@ -849,13 +1344,50 @@ dl {
   tbody td.truncate {
     max-width: none;
   }
-  /* Status and amount lead each block. */
-  tbody td[data-label='Status'],
+  /* Amount leads each block and status closes it, matching the column order. */
   tbody td[data-label='Amount'] {
     padding-bottom: 6px;
-  }
-  tbody td[data-label='Amount'] {
     font-size: 15px;
+  }
+  tbody td[data-label='Status'] {
+    margin-top: 7px;
+    padding-top: 9px;
+    border-top: 1px solid var(--line);
+  }
+
+  /* The overview's tables are small enough to stay tables; only the row list
+     above benefits from becoming blocks. */
+  table.mini thead {
+    display: table-header-group;
+  }
+  table.mini tbody tr {
+    display: table-row;
+    padding: 0;
+  }
+  table.mini tbody td {
+    display: table-cell;
+    padding: 7px 12px 7px 0;
+    text-align: left;
+  }
+  table.mini tbody td::before {
+    content: none;
+  }
+  table.mini tbody td.num,
+  table.mini thead th.num {
+    text-align: right;
+  }
+  table.mini tbody td[data-label] {
+    margin-top: 0;
+    padding-top: 7px;
+    border-top: 0;
+  }
+
+  .overview-body {
+    padding: 16px;
+  }
+  .tiles {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    margin: 18px 0 22px;
   }
 
   .pager {
